@@ -4,10 +4,15 @@
 
 #include "pch.h"
 #include "Game.h"
+#include "SimpleMath.h"
+#include "ReadData.h"
+
+#include <vector>
 
 extern void ExitGame();
 
 using namespace DirectX;
+using namespace DirectX::SimpleMath;
 
 using Microsoft::WRL::ComPtr;
 
@@ -36,6 +41,8 @@ void Game::Initialize(HWND window, int width, int height)
     m_timer.SetFixedTimeStep(true);
     m_timer.SetTargetElapsedSeconds(1.0 / 60);
     */
+
+	DoComputeWork();
 }
 
 // Executes the basic game loop.
@@ -213,6 +220,85 @@ void Game::CreateDevice()
     DX::ThrowIfFailed(context.As(&m_d3dContext));
 
     // TODO: Initialize device dependent objects here (independent of window size).
+	
+
+	{	// input buffer
+		CD3D11_BUFFER_DESC desc(
+			sizeof(XMFLOAT3) * NUM_ELEMENTS, 
+			D3D11_BIND_SHADER_RESOURCE, 
+			D3D11_USAGE_DEFAULT, 
+			0, 
+			D3D11_RESOURCE_MISC_BUFFER_STRUCTURED, 
+			sizeof(XMFLOAT3));
+
+		//std::srand(std::time(nullptr));
+
+		auto randFloat = [](float max) -> float
+		{
+			float r = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+			return r * max;
+		};
+
+		std::vector<Vector3> randomVectors;
+		std::vector<float> randomLengths;
+		{
+			for (int i=0; i<NUM_ELEMENTS; ++i)
+			{
+				float randLength = randFloat(10.0f);
+				float randomYaw = randFloat(XM_2PI);
+				float randomPitch = randFloat(XM_2PI);
+				float randomRoll = randFloat(XM_2PI);
+
+				Matrix rotation = Matrix::CreateFromYawPitchRoll(randomYaw, randomPitch, randomRoll);
+				Vector3 randVec = Vector3::Transform(Vector3(randLength, 0, 0), rotation);
+				
+				randomVectors.push_back(randVec);
+				randomLengths.push_back(randLength);
+			}
+		}
+
+
+		D3D11_SUBRESOURCE_DATA initData = { 0 };
+		initData.pSysMem = randomVectors.data();
+
+		DX::ThrowIfFailed(
+			m_d3dDevice->CreateBuffer(&desc, &initData, m_inputBuffer.ReleaseAndGetAddressOf()));
+
+		DX::ThrowIfFailed(
+			m_d3dDevice->CreateShaderResourceView(m_inputBuffer.Get(), nullptr, m_inputSRV.ReleaseAndGetAddressOf()));
+	}
+
+	{	// output buffer
+
+		CD3D11_TEXTURE1D_DESC outputDesc(
+			DXGI_FORMAT_R32_FLOAT, 
+			NUM_ELEMENTS, 1, 0,
+			D3D11_BIND_UNORDERED_ACCESS);
+
+		DX::ThrowIfFailed(
+			m_d3dDevice->CreateTexture1D(&outputDesc, nullptr, m_outputBuffer.ReleaseAndGetAddressOf()));
+
+		DX::ThrowIfFailed(
+			m_d3dDevice->CreateUnorderedAccessView(m_outputBuffer.Get(), nullptr, m_outputUAV.ReleaseAndGetAddressOf()));
+
+		//
+		CD3D11_TEXTURE1D_DESC outputDescCPU(
+			DXGI_FORMAT_R32_FLOAT,
+			NUM_ELEMENTS, 1, 0,
+			0, D3D11_USAGE_STAGING, D3D11_CPU_ACCESS_READ);
+
+		DX::ThrowIfFailed(
+			m_d3dDevice->CreateTexture1D(&outputDescCPU, nullptr, m_outputBufferCPU.ReleaseAndGetAddressOf()));
+	}
+
+	{
+		auto blob = DX::ReadData(L"ComputeShader.cso");
+		
+		DX::ThrowIfFailed(
+			m_d3dDevice->CreateComputeShader(blob.data(), blob.size(), nullptr, m_csShader.ReleaseAndGetAddressOf()));
+
+	}
+
 }
 
 // Allocate all memory resources that change on a window SizeChanged event.
@@ -324,4 +410,30 @@ void Game::OnDeviceLost()
     CreateDevice();
 
     CreateResources();
+}
+
+void Game::DoComputeWork()
+{
+	m_d3dContext->CSSetShader(m_csShader.Get(), nullptr, 0);
+	m_d3dContext->CSSetShaderResources(0, 1, m_inputSRV.GetAddressOf());
+	m_d3dContext->CSSetUnorderedAccessViews(0, 1, m_outputUAV.GetAddressOf(), nullptr);
+	m_d3dContext->Dispatch(2, 1, 1);
+
+	// Save result to file!
+	std::ofstream fout("results.txt");
+
+	m_d3dContext->CopyResource(m_outputBufferCPU.Get(), m_outputBuffer.Get());
+
+	D3D11_MAPPED_SUBRESOURCE mappedData;
+	m_d3dContext->Map(m_outputBufferCPU.Get(), 0, D3D11_MAP_READ, 0, &mappedData);
+
+	float* dataView = reinterpret_cast<float*>(mappedData.pData);
+	for (int i = 0; i < NUM_ELEMENTS; ++i)
+	{
+		fout << dataView[i] << std::endl;
+	}
+
+	m_d3dContext->Unmap(m_outputBufferCPU.Get(), 0);
+
+	fout.close();
 }

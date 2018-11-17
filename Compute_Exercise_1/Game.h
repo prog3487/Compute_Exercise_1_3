@@ -59,4 +59,17 @@ private:
 
     // Rendering loop timer.
     DX::StepTimer                                   m_timer;
+
+	//
+	const static int NUM_ELEMENTS = 64;
+
+	Microsoft::WRL::ComPtr<ID3D11Buffer> m_inputBuffer;
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> m_inputSRV;
+	
+	Microsoft::WRL::ComPtr<ID3D11Texture1D> m_outputBuffer;
+	Microsoft::WRL::ComPtr<ID3D11Texture1D> m_outputBufferCPU;
+	Microsoft::WRL::ComPtr<ID3D11UnorderedAccessView> m_outputUAV;
+
+	Microsoft::WRL::ComPtr<ID3D11ComputeShader> m_csShader;
+	void DoComputeWork();
 };
