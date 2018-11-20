@@ -44,6 +44,8 @@ private:
 
     void OnDeviceLost();
 
+	void CalculateFrameStats(DX::StepTimer const& timer);
+
     // Device resources.
     HWND                                            m_window;
     int                                             m_outputWidth;
@@ -71,5 +73,17 @@ private:
 	Microsoft::WRL::ComPtr<ID3D11UnorderedAccessView> m_outputUAV;
 
 	Microsoft::WRL::ComPtr<ID3D11ComputeShader> m_csShader;
+	
+	
+	// exercise 2
+	Microsoft::WRL::ComPtr<ID3D11Buffer> m_inputBuffer2;
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> m_inputSRV2;
+	Microsoft::WRL::ComPtr<ID3D11ComputeShader> m_csShader2;
+	Microsoft::WRL::ComPtr<ID3D11UnorderedAccessView> m_outputUAV2;
+	Microsoft::WRL::ComPtr<ID3D11Buffer> m_outputBuffer2;
+	Microsoft::WRL::ComPtr<ID3D11Buffer> m_outputBufferCPU2;
+
+
 	void DoComputeWork();
+	void DoComputeWork_exercise_2();
 };

@@ -6,7 +6,7 @@
 #include "Game.h"
 #include "SimpleMath.h"
 #include "ReadData.h"
-
+#include <string>
 #include <vector>
 
 extern void ExitGame();
@@ -43,6 +43,7 @@ void Game::Initialize(HWND window, int width, int height)
     */
 
 	DoComputeWork();
+	DoComputeWork_exercise_2();
 }
 
 // Executes the basic game loop.
@@ -56,13 +57,30 @@ void Game::Tick()
     Render();
 }
 
+void Game::CalculateFrameStats(DX::StepTimer const& timer)
+{
+	const static float updateGap = 1.0f;
+	static float elapsedTime = 0.0f;
+
+	elapsedTime += (float)timer.GetElapsedSeconds();
+	if (elapsedTime >= updateGap)
+	{
+		std::wstring fpstxt(L"FPS : ");
+		fpstxt += std::to_wstring(timer.GetFramesPerSecond());
+		::SetWindowText(m_window, fpstxt.c_str());
+		elapsedTime -= updateGap;
+	}
+}
+
 // Updates the world.
 void Game::Update(DX::StepTimer const& timer)
 {
     float elapsedTime = float(timer.GetElapsedSeconds());
 
     // TODO: Add your game logic here.
-    elapsedTime;
+	CalculateFrameStats(timer);
+
+	DoComputeWork_exercise_2();
 }
 
 // Draws the scene.
@@ -101,7 +119,7 @@ void Game::Present()
     // The first argument instructs DXGI to block until VSync, putting the application
     // to sleep until the next VSync. This ensures we don't waste any cycles rendering
     // frames that will never be displayed to the screen.
-    HRESULT hr = m_swapChain->Present(1, 0);
+    HRESULT hr = m_swapChain->Present(0, 0);
 
     // If the device was reset we must completely reinitialize the renderer.
     if (hr == DXGI_ERROR_DEVICE_REMOVED || hr == DXGI_ERROR_DEVICE_RESET)
@@ -223,13 +241,7 @@ void Game::CreateDevice()
 	
 
 	{	// input buffer
-		CD3D11_BUFFER_DESC desc(
-			sizeof(XMFLOAT3) * NUM_ELEMENTS, 
-			D3D11_BIND_SHADER_RESOURCE, 
-			D3D11_USAGE_DEFAULT, 
-			0, 
-			D3D11_RESOURCE_MISC_BUFFER_STRUCTURED, 
-			sizeof(XMFLOAT3));
+
 
 		//std::srand(std::time(nullptr));
 
@@ -257,6 +269,13 @@ void Game::CreateDevice()
 			}
 		}
 
+		CD3D11_BUFFER_DESC desc(
+			sizeof(XMFLOAT3) * NUM_ELEMENTS,
+			D3D11_BIND_SHADER_RESOURCE,
+			D3D11_USAGE_DEFAULT,
+			0,
+			D3D11_RESOURCE_MISC_BUFFER_STRUCTURED,
+			sizeof(XMFLOAT3));
 
 		D3D11_SUBRESOURCE_DATA initData = { 0 };
 		initData.pSysMem = randomVectors.data();
@@ -266,6 +285,29 @@ void Game::CreateDevice()
 
 		DX::ThrowIfFailed(
 			m_d3dDevice->CreateShaderResourceView(m_inputBuffer.Get(), nullptr, m_inputSRV.ReleaseAndGetAddressOf()));
+
+
+		{	// exercise 2 input buffers
+			CD3D11_BUFFER_DESC rawBufferDesc(
+				sizeof(XMFLOAT3) * NUM_ELEMENTS,
+				D3D11_BIND_SHADER_RESOURCE,
+				D3D11_USAGE_DEFAULT,
+				0,
+				D3D11_RESOURCE_MISC_BUFFER_ALLOW_RAW_VIEWS);
+
+			DX::ThrowIfFailed(
+				m_d3dDevice->CreateBuffer(&rawBufferDesc, &initData, m_inputBuffer2.ReleaseAndGetAddressOf()));
+
+			CD3D11_SHADER_RESOURCE_VIEW_DESC srvDesc(
+				m_inputBuffer2.Get(), 
+				DXGI_FORMAT_R32_TYPELESS, 
+				0, 
+				sizeof(XMFLOAT3) * NUM_ELEMENTS / sizeof(float), 
+				D3D11_BUFFEREX_SRV_FLAG_RAW);
+			
+			DX::ThrowIfFailed(
+				m_d3dDevice->CreateShaderResourceView(m_inputBuffer2.Get(), &srvDesc, m_inputSRV2.ReleaseAndGetAddressOf()));
+		}
 	}
 
 	{	// output buffer
@@ -289,6 +331,47 @@ void Game::CreateDevice()
 
 		DX::ThrowIfFailed(
 			m_d3dDevice->CreateTexture1D(&outputDescCPU, nullptr, m_outputBufferCPU.ReleaseAndGetAddressOf()));
+
+
+		{	// exercise 2
+			CD3D11_BUFFER_DESC desc(
+				sizeof(float) * NUM_ELEMENTS,
+				D3D11_BIND_UNORDERED_ACCESS,
+				D3D11_USAGE_DEFAULT,
+				0, 
+				D3D11_RESOURCE_MISC_BUFFER_ALLOW_RAW_VIEWS);
+
+			DX::ThrowIfFailed(
+				m_d3dDevice->CreateBuffer(&desc, nullptr, m_outputBuffer2.ReleaseAndGetAddressOf()));
+
+			CD3D11_SHADER_RESOURCE_VIEW_DESC srvDesc(
+				m_inputBuffer2.Get(),
+				DXGI_FORMAT_R32_TYPELESS,
+				0,
+				sizeof(XMFLOAT3) * NUM_ELEMENTS / sizeof(float),
+				D3D11_BUFFEREX_SRV_FLAG_RAW);
+
+			CD3D11_UNORDERED_ACCESS_VIEW_DESC uavDesc(
+				m_outputBuffer2.Get(),
+				DXGI_FORMAT_R32_TYPELESS,
+				0,
+				NUM_ELEMENTS,
+				D3D11_BUFFER_UAV_FLAG_RAW
+			);
+
+			DX::ThrowIfFailed(
+				m_d3dDevice->CreateUnorderedAccessView(m_outputBuffer2.Get(), &uavDesc, m_outputUAV2.ReleaseAndGetAddressOf()));
+
+			// output cpu buffer
+			D3D11_BUFFER_DESC output_cpu_desc = { 0 };
+			output_cpu_desc.BindFlags = 0;
+			output_cpu_desc.ByteWidth = sizeof(float) * NUM_ELEMENTS;
+			output_cpu_desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+			output_cpu_desc.Usage = D3D11_USAGE_STAGING;
+
+			DX::ThrowIfFailed(
+				m_d3dDevice->CreateBuffer(&output_cpu_desc, nullptr, m_outputBufferCPU2.ReleaseAndGetAddressOf()));
+		}
 	}
 
 	{
@@ -296,7 +379,13 @@ void Game::CreateDevice()
 		
 		DX::ThrowIfFailed(
 			m_d3dDevice->CreateComputeShader(blob.data(), blob.size(), nullptr, m_csShader.ReleaseAndGetAddressOf()));
+	}
 
+	{
+		auto blob = DX::ReadData(L"ComputeShader_exercise_2.cso");
+
+		DX::ThrowIfFailed(
+			m_d3dDevice->CreateComputeShader(blob.data(), blob.size(), nullptr, m_csShader2.ReleaseAndGetAddressOf()));
 	}
 
 }
@@ -434,6 +523,33 @@ void Game::DoComputeWork()
 	}
 
 	m_d3dContext->Unmap(m_outputBufferCPU.Get(), 0);
+
+	fout.close();
+}
+
+void Game::DoComputeWork_exercise_2()
+{
+	m_d3dContext->CSSetShader(m_csShader2.Get(), nullptr, 0);
+	m_d3dContext->CSSetShaderResources(0, 1, m_inputSRV2.GetAddressOf());
+	m_d3dContext->CSSetUnorderedAccessViews(0, 1, m_outputUAV2.GetAddressOf(), nullptr);
+	
+	m_d3dContext->Dispatch(1, 1, 1);
+
+	// Save result to file!
+	std::ofstream fout("results_exe2.txt");
+
+	m_d3dContext->CopyResource(m_outputBufferCPU2.Get(), m_outputBuffer2.Get());
+
+	D3D11_MAPPED_SUBRESOURCE mappedData;
+	m_d3dContext->Map(m_outputBufferCPU2.Get(), 0, D3D11_MAP_READ, 0, &mappedData);
+
+	float* dataView = reinterpret_cast<float*>(mappedData.pData);
+	for (int i = 0; i < NUM_ELEMENTS; ++i)
+	{
+		fout << dataView[i] << std::endl;
+	}
+
+	m_d3dContext->Unmap(m_outputBufferCPU2.Get(), 0);
 
 	fout.close();
 }

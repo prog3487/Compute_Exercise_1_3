@@ -1,7 +1,6 @@
 
 
 StructuredBuffer<float3> gInput;
-
 RWTexture1D<float> gOutput;
 
 [numthreads(64, 1, 1)]
