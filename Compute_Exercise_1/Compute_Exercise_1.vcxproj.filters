@@ -37,7 +37,10 @@
     <FxCompile Include="ComputeShader.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="ComputeShader_exercise_2.hlsl">
+    <FxCompile Include="ComputeShader3.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="ComputeShader2.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
   </ItemGroup>

@@ -20,7 +20,8 @@ Game::Game() noexcept :
     m_window(nullptr),
     m_outputWidth(800),
     m_outputHeight(600),
-    m_featureLevel(D3D_FEATURE_LEVEL_9_1)
+    //m_featureLevel(D3D_FEATURE_LEVEL_9_1)
+	m_featureLevel(D3D_FEATURE_LEVEL_11_1)
 {
 }
 
@@ -42,8 +43,9 @@ void Game::Initialize(HWND window, int width, int height)
     m_timer.SetTargetElapsedSeconds(1.0 / 60);
     */
 
-	DoComputeWork();
-	DoComputeWork_exercise_2();
+	//DoComputeWork();
+	//DoComputeWork_exercise_2();
+	DoComputeWork_exercise_3();
 }
 
 // Executes the basic game loop.
@@ -75,12 +77,14 @@ void Game::CalculateFrameStats(DX::StepTimer const& timer)
 // Updates the world.
 void Game::Update(DX::StepTimer const& timer)
 {
-    float elapsedTime = float(timer.GetElapsedSeconds());
+    //float elapsedTime = float(timer.GetElapsedSeconds());
 
     // TODO: Add your game logic here.
 	CalculateFrameStats(timer);
 
-	DoComputeWork_exercise_2();
+	//DoComputeWork();
+	//DoComputeWork_exercise_2();
+	//DoComputeWork_exercise_3();
 }
 
 // Draws the scene.
@@ -107,6 +111,10 @@ void Game::Clear()
     m_d3dContext->ClearDepthStencilView(m_depthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 
     m_d3dContext->OMSetRenderTargets(1, m_renderTargetView.GetAddressOf(), m_depthStencilView.Get());
+	
+// 	UINT initCnt = NUM_ELEMENTS;
+// 	ID3D11UnorderedAccessView* uavs[] = { m_inputUAV3.Get(), m_outputUAV3.Get() };
+// 	m_d3dContext->OMSetRenderTargetsAndUnorderedAccessViews(1, m_renderTargetView.GetAddressOf(), m_depthStencilView.Get(), 1, _countof(uavs), uavs, &initCnt);
 
     // Set the viewport.
     CD3D11_VIEWPORT viewport(0.0f, 0.0f, static_cast<float>(m_outputWidth), static_cast<float>(m_outputHeight));
@@ -308,6 +316,24 @@ void Game::CreateDevice()
 			DX::ThrowIfFailed(
 				m_d3dDevice->CreateShaderResourceView(m_inputBuffer2.Get(), &srvDesc, m_inputSRV2.ReleaseAndGetAddressOf()));
 		}
+
+		{	// exercise 3 input buffers
+			CD3D11_BUFFER_DESC descuav(
+				sizeof(XMFLOAT3) * NUM_ELEMENTS,
+				D3D11_BIND_UNORDERED_ACCESS,
+				D3D11_USAGE_DEFAULT,
+				0,
+				D3D11_RESOURCE_MISC_BUFFER_STRUCTURED,
+				sizeof(XMFLOAT3));
+			
+			DX::ThrowIfFailed(
+				m_d3dDevice->CreateBuffer(&descuav, &initData, m_inputBuffer3.ReleaseAndGetAddressOf()));
+
+			CD3D11_UNORDERED_ACCESS_VIEW_DESC uavDesc(m_inputBuffer3.Get(), DXGI_FORMAT_UNKNOWN, 0, NUM_ELEMENTS, D3D11_BUFFER_UAV_FLAG_APPEND);
+
+			DX::ThrowIfFailed(
+				m_d3dDevice->CreateUnorderedAccessView(m_inputBuffer3.Get(), &uavDesc, m_inputUAV3.ReleaseAndGetAddressOf()));
+		}
 	}
 
 	{	// output buffer
@@ -330,7 +356,7 @@ void Game::CreateDevice()
 			0, D3D11_USAGE_STAGING, D3D11_CPU_ACCESS_READ);
 
 		DX::ThrowIfFailed(
-			m_d3dDevice->CreateTexture1D(&outputDescCPU, nullptr, m_outputBufferCPU.ReleaseAndGetAddressOf()));
+			m_d3dDevice->CreateTexture1D(&outputDescCPU, nullptr, m_outputTexture.ReleaseAndGetAddressOf()));
 
 
 		{	// exercise 2
@@ -343,13 +369,6 @@ void Game::CreateDevice()
 
 			DX::ThrowIfFailed(
 				m_d3dDevice->CreateBuffer(&desc, nullptr, m_outputBuffer2.ReleaseAndGetAddressOf()));
-
-			CD3D11_SHADER_RESOURCE_VIEW_DESC srvDesc(
-				m_inputBuffer2.Get(),
-				DXGI_FORMAT_R32_TYPELESS,
-				0,
-				sizeof(XMFLOAT3) * NUM_ELEMENTS / sizeof(float),
-				D3D11_BUFFEREX_SRV_FLAG_RAW);
 
 			CD3D11_UNORDERED_ACCESS_VIEW_DESC uavDesc(
 				m_outputBuffer2.Get(),
@@ -368,9 +387,32 @@ void Game::CreateDevice()
 			output_cpu_desc.ByteWidth = sizeof(float) * NUM_ELEMENTS;
 			output_cpu_desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
 			output_cpu_desc.Usage = D3D11_USAGE_STAGING;
+ 
+ 			DX::ThrowIfFailed(
+ 				m_d3dDevice->CreateBuffer(&output_cpu_desc, nullptr, m_outputBufferCPU.ReleaseAndGetAddressOf()));
+ 		}
+
+		{	// Exercise 3
+			CD3D11_BUFFER_DESC desc(
+				sizeof(float) * NUM_ELEMENTS,
+				D3D11_BIND_UNORDERED_ACCESS,
+				D3D11_USAGE_DEFAULT,
+				0,
+				D3D11_RESOURCE_MISC_BUFFER_STRUCTURED,
+				sizeof(float));
 
 			DX::ThrowIfFailed(
-				m_d3dDevice->CreateBuffer(&output_cpu_desc, nullptr, m_outputBufferCPU2.ReleaseAndGetAddressOf()));
+				m_d3dDevice->CreateBuffer(&desc, nullptr, m_outputBuffer3.ReleaseAndGetAddressOf()));
+
+			CD3D11_UNORDERED_ACCESS_VIEW_DESC uavDesc(
+				m_outputBuffer3.Get(),
+				DXGI_FORMAT_UNKNOWN,
+				0,
+				NUM_ELEMENTS,
+				D3D11_BUFFER_UAV_FLAG_APPEND);
+
+			DX::ThrowIfFailed(
+				m_d3dDevice->CreateUnorderedAccessView(m_outputBuffer3.Get(), &uavDesc, m_outputUAV3.ReleaseAndGetAddressOf()));
 		}
 	}
 
@@ -382,12 +424,18 @@ void Game::CreateDevice()
 	}
 
 	{
-		auto blob = DX::ReadData(L"ComputeShader_exercise_2.cso");
+		auto blob = DX::ReadData(L"ComputeShader2.cso");
 
 		DX::ThrowIfFailed(
 			m_d3dDevice->CreateComputeShader(blob.data(), blob.size(), nullptr, m_csShader2.ReleaseAndGetAddressOf()));
 	}
 
+	{
+		auto blob = DX::ReadData(L"ComputeShader3.cso");
+
+		DX::ThrowIfFailed(
+			m_d3dDevice->CreateComputeShader(blob.data(), blob.size(), nullptr, m_csShader3.ReleaseAndGetAddressOf()));
+	}
 }
 
 // Allocate all memory resources that change on a window SizeChanged event.
@@ -511,10 +559,10 @@ void Game::DoComputeWork()
 	// Save result to file!
 	std::ofstream fout("results.txt");
 
-	m_d3dContext->CopyResource(m_outputBufferCPU.Get(), m_outputBuffer.Get());
+	m_d3dContext->CopyResource(m_outputTexture.Get(), m_outputBuffer.Get());
 
 	D3D11_MAPPED_SUBRESOURCE mappedData;
-	m_d3dContext->Map(m_outputBufferCPU.Get(), 0, D3D11_MAP_READ, 0, &mappedData);
+	m_d3dContext->Map(m_outputTexture.Get(), 0, D3D11_MAP_READ, 0, &mappedData);
 
 	float* dataView = reinterpret_cast<float*>(mappedData.pData);
 	for (int i = 0; i < NUM_ELEMENTS; ++i)
@@ -522,7 +570,7 @@ void Game::DoComputeWork()
 		fout << dataView[i] << std::endl;
 	}
 
-	m_d3dContext->Unmap(m_outputBufferCPU.Get(), 0);
+	m_d3dContext->Unmap(m_outputTexture.Get(), 0);
 
 	fout.close();
 }
@@ -538,10 +586,10 @@ void Game::DoComputeWork_exercise_2()
 	// Save result to file!
 	std::ofstream fout("results_exe2.txt");
 
-	m_d3dContext->CopyResource(m_outputBufferCPU2.Get(), m_outputBuffer2.Get());
+	m_d3dContext->CopyResource(m_outputBufferCPU.Get(), m_outputBuffer2.Get());
 
 	D3D11_MAPPED_SUBRESOURCE mappedData;
-	m_d3dContext->Map(m_outputBufferCPU2.Get(), 0, D3D11_MAP_READ, 0, &mappedData);
+	m_d3dContext->Map(m_outputBufferCPU.Get(), 0, D3D11_MAP_READ, 0, &mappedData);
 
 	float* dataView = reinterpret_cast<float*>(mappedData.pData);
 	for (int i = 0; i < NUM_ELEMENTS; ++i)
@@ -549,7 +597,36 @@ void Game::DoComputeWork_exercise_2()
 		fout << dataView[i] << std::endl;
 	}
 
-	m_d3dContext->Unmap(m_outputBufferCPU2.Get(), 0);
+	m_d3dContext->Unmap(m_outputBufferCPU.Get(), 0);
+
+	fout.close();
+}
+
+
+void Game::DoComputeWork_exercise_3()
+{
+	m_d3dContext->CSSetShader(m_csShader3.Get(), nullptr, 0);
+
+	ID3D11UnorderedAccessView* uavs[] = { m_inputUAV3.Get(), m_outputUAV3.Get() };
+	UINT initCnts[] = { NUM_ELEMENTS, 0 };
+	m_d3dContext->CSSetUnorderedAccessViews(0, _countof(uavs), uavs, initCnts);
+	m_d3dContext->Dispatch(1, 1, 1);
+
+	// Save result to file!
+	std::ofstream fout("results_exe3.txt");
+
+	m_d3dContext->CopyResource(m_outputBufferCPU.Get(), m_outputBuffer3.Get());
+
+	D3D11_MAPPED_SUBRESOURCE mappedData;
+	m_d3dContext->Map(m_outputBufferCPU.Get(), 0, D3D11_MAP_READ, 0, &mappedData);
+
+	float* dataView = reinterpret_cast<float*>(mappedData.pData);
+	for (int i = 0; i < NUM_ELEMENTS; ++i)
+	{
+		fout << dataView[i] << std::endl;
+	}
+
+	m_d3dContext->Unmap(m_outputBufferCPU.Get(), 0);
 
 	fout.close();
 }

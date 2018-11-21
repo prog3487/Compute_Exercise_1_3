@@ -69,7 +69,7 @@ private:
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> m_inputSRV;
 	
 	Microsoft::WRL::ComPtr<ID3D11Texture1D> m_outputBuffer;
-	Microsoft::WRL::ComPtr<ID3D11Texture1D> m_outputBufferCPU;
+	Microsoft::WRL::ComPtr<ID3D11Texture1D> m_outputTexture;
 	Microsoft::WRL::ComPtr<ID3D11UnorderedAccessView> m_outputUAV;
 
 	Microsoft::WRL::ComPtr<ID3D11ComputeShader> m_csShader;
@@ -81,9 +81,17 @@ private:
 	Microsoft::WRL::ComPtr<ID3D11ComputeShader> m_csShader2;
 	Microsoft::WRL::ComPtr<ID3D11UnorderedAccessView> m_outputUAV2;
 	Microsoft::WRL::ComPtr<ID3D11Buffer> m_outputBuffer2;
-	Microsoft::WRL::ComPtr<ID3D11Buffer> m_outputBufferCPU2;
+	Microsoft::WRL::ComPtr<ID3D11Buffer> m_outputBufferCPU;
+
+	// exercise 3
+	Microsoft::WRL::ComPtr<ID3D11Buffer> m_inputBuffer3;
+	Microsoft::WRL::ComPtr<ID3D11Buffer> m_outputBuffer3;
+	Microsoft::WRL::ComPtr<ID3D11UnorderedAccessView> m_inputUAV3;
+	Microsoft::WRL::ComPtr<ID3D11UnorderedAccessView> m_outputUAV3;
+	Microsoft::WRL::ComPtr<ID3D11ComputeShader> m_csShader3;
 
 
 	void DoComputeWork();
 	void DoComputeWork_exercise_2();
+	void DoComputeWork_exercise_3();
 };
