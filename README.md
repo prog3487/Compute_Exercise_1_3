@@ -1,4 +1,9 @@
-## Welcome to GitHub Page
+
+
+
+# 12.10.1 & 12.10.2
+
+[Image](./1_2.png)
 
 You can use the [editor on GitHub](https://github.com/prog3487/Compute_Exercise_1_3/edit/master/README.md) to maintain and preview the content for your website in Markdown files.
 
