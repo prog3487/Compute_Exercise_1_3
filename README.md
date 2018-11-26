@@ -5,6 +5,11 @@
 
 ![Image](./1_2.png)
 
+# 12.10.3
+
+![Image](./3.png)
+
+
 You can use the [editor on GitHub](https://github.com/prog3487/Compute_Exercise_1_3/edit/master/README.md) to maintain and preview the content for your website in Markdown files.
 
 Whenever you commit to this repository, GitHub Pages will run [Jekyll](https://jekyllrb.com/) to rebuild the pages in your site, from the content in your Markdown files.
